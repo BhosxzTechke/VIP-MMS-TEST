@@ -11,6 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (!Schema::hasTable('referrals')) {
             Schema::create('referrals', function (Blueprint $table) {
                 $table->id();
 
@@ -30,7 +31,7 @@ return new class extends Migration
 
                 $table->timestamps();
             });
-
+        }
     }
 
     /**
