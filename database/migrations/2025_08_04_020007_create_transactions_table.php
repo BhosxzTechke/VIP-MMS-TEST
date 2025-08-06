@@ -9,8 +9,9 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-    public function up(): void
-    {
+public function up(): void
+{
+    if (!Schema::hasTable('transactions')) {
         Schema::create('transactions', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained(); // references users.id
@@ -24,6 +25,8 @@ return new class extends Migration
             $table->timestamps(); // includes created_at and updated_at
         });
     }
+}
+
 
     public function down(): void
     {
