@@ -9,10 +9,12 @@ return new class extends Migration
     /**
      * Run the migrations.
      */
-            public function up()
+            public function up(): void
             {
                 Schema::table('users', function (Blueprint $table) {
-                    $table->string('referral_code')->unique()->nullable();
+                    if (!Schema::hasColumn('users', 'referral_code')) {
+                        $table->string('referral_code')->nullable();
+                    }
                 });
             }
 
