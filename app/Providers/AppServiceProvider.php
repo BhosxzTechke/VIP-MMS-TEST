@@ -20,11 +20,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-                    //
-            if (app()->environment('production')) {
-                // Only clear and rebuild the config cache (file-based)
-                Artisan::call('config:clear');
-                Artisan::call('config:cache');
-            }
+        //
     }
 }
