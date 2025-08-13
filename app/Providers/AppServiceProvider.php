@@ -20,12 +20,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
-            // Force clear config cache so updated Railway env vars are loaded
-    if (app()->environment('production')) {
-        Artisan::call('config:clear');
-        Artisan::call('cache:clear');
-        Artisan::call('config:cache');
-    }
+                    //
+            if (app()->environment('production')) {
+                // Only clear and rebuild the config cache (file-based)
+                Artisan::call('config:clear');
+                Artisan::call('config:cache');
+            }
     }
 }
