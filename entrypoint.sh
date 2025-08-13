@@ -5,8 +5,5 @@ set -e
 php artisan config:clear || true
 php artisan config:cache || true
 
-# Convert Railway's $PORT to integer (default 8000 if unset)
-PORT_INT=${PORT:-8000}
-
-# Start Laravel on Railway's assigned port
-php artisan serve --host=0.0.0.0 --port=$PORT_INT
+# Start Laravel using PHP's built-in server
+php -S 0.0.0.0:${PORT:-8000} -t public
