@@ -12,9 +12,11 @@ return new class extends Migration
             public function up(): void
             {
                 Schema::table('users', function (Blueprint $table) {
-                if (!Schema::hasColumn('users', 'referral_code')) {
-                    $table->string('referral_code')->nullable();
-                }
+                    // Add self-referencing foreign key
+                    $table->unsignedBigInteger('referred_by')->nullable()->after('referral_code');
+
+                    // Add foreign key constraint
+                    $table->foreign('referred_by')->references('id')->on('users')->nullOnDelete();
                 });
             }
 
