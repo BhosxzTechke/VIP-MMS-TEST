@@ -186,6 +186,8 @@ public static function createMembershipUpgrade(
         'membership_id' => $membershipId,
         'type' => 'membership_upgrade',
         'amount' => $amount,
+        'amount_paid' => 0, // <--- add this
+        'status' => 'pending',
         'currency' => 'PHP',
         'payment_method' => $paymentMethod ?? 'pending',
         'payment_metadata' => json_encode([
@@ -194,6 +196,8 @@ public static function createMembershipUpgrade(
         ]),
     ]);
 }
+
+
 
     
     /**
