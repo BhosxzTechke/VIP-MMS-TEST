@@ -14,18 +14,18 @@ class Transaction extends Model
      *
      * @var array<int, string>
      */
-    protected $fillable = [
-        'user_id',
-        'type',
-        'amount',
-        'currency',
-        'payment_status',
-        'external_payment_id',
-        'payment_method',
-        'payment_metadata',
-        'processed_at',
-    ];
-
+        protected $fillable = [
+            'user_id',
+            'membership_id', // ← add this
+            'type',
+            'amount',
+            'currency',
+            'payment_status',
+            'external_payment_id',
+            'payment_method',
+            'payment_metadata',
+            'processed_at',
+        ];
 
 
 
