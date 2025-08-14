@@ -86,48 +86,65 @@ class PaymentController extends Controller
     /**
      * Handle checkout process.
      */
-    public function checkout(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'tier' => 'required|in:gold,platinum,diamond',
-            'payment_method' => 'required|in:card,gcash,grab_pay,paymaya',
-        ]);
+public function checkout(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'tier' => 'required|in:gold,platinum,diamond',
+        'payment_method' => 'required|in:card,gcash,grab_pay,paymaya',
+    ]);
 
-        if ($validator->fails()) {
-            return back()->withErrors($validator);
+    if ($validator->fails()) {
+        return back()->withErrors($validator);
+    }
+
+    $user = Auth::user();
+
+    if ($user->isVip()) {
+        return redirect()->route('dashboard')->with('error', 'You are already a VIP member.');
+    }
+
+    try {
+        // If payment method is card, skip manual createPaymentMethod & use hosted checkout
+        if ($request->payment_method === 'card') {
+            $amount = config("paymongo.membership_prices.{$request->tier}");
+            if (!$amount) {
+                return back()->with('error', 'Invalid membership tier.');
+            }
+
+            $description = ucfirst($request->tier) . ' Membership';
+
+            $checkoutResult = $this->paymentService->createCardCheckout($user, $amount, $description);
+            if (!$checkoutResult['success'] || !isset($checkoutResult['checkout_url'])) {
+                Log::error('Card checkout creation failed', ['result' => $checkoutResult]);
+                return back()->with('error', $checkoutResult['error'] ?? 'Failed to create card checkout.');
+            }
+
+            return redirect()->away($checkoutResult['checkout_url']);
         }
 
+        
 
-        $user = Auth::user();
+        // ----------- Normal Flow for GCash / GrabPay / PayMaya -----------
+        // Create PaymentIntent
+        $result = $this->paymentService->createPaymentIntent($user, $request->tier);
 
-        if ($user->isVip()) {
-            return redirect()->route('dashboard')->with('error', 'You are already a VIP member.');
-        }
-
-        try {
-
-            // Create PaymentIntent
-            $result = $this->paymentService->createPaymentIntent($user, $request->tier);
-            // John Doe , Platinum
-            // from Auth si john doe and sa form request ay platinum
-
-                if (!$result['success'] || !isset($result['payment_intent'])) {
-                    Log::error('Payment intent creation failed', ['result' => $result]);
-                    return back()->with('error', $result['error'] ?? 'Failed to create payment intent.');
+        if (!$result['success'] || !isset($result['payment_intent'])) {
+            Log::error('Payment intent creation failed', ['result' => $result]);
+            return back()->with('error', $result['error'] ?? 'Failed to create payment intent.');
         }
 
         // Create PaymentMethod
         $paymentMethodResult = $this->paymentService->createPaymentMethod($request->payment_method, $user);
-            if (!$paymentMethodResult['success'] || !isset($paymentMethodResult['payment_method'])) {
-                Log::error('Payment method creation failed', ['result' => $paymentMethodResult]);
-                return back()->with('error', $paymentMethodResult['error'] ?? 'Failed to create payment method.');
-            }
+        if (!$paymentMethodResult['success'] || !isset($paymentMethodResult['payment_method'])) {
+            Log::error('Payment method creation failed', ['result' => $paymentMethodResult]);
+            return back()->with('error', $paymentMethodResult['error'] ?? 'Failed to create payment method.');
+        }
 
         // Attach
         $attachResult = $this->paymentService->attachPaymentMethod(
             $result['payment_intent']['id'],
             $paymentMethodResult['payment_method']['id'],
-            $request->payment_method // <-- NEW: Pass type
+            $request->payment_method
         );
 
         if (!$attachResult['success']) {
@@ -138,20 +155,16 @@ class PaymentController extends Controller
         $status = $paymentIntent['attributes']['status'];
         $redirectUrl = $paymentIntent['attributes']['next_action']['redirect']['url'] ?? null;
 
-
         if ($redirectUrl) {
-            return redirect($redirectUrl); // For gcash, grab_pay, etc.
+            return redirect($redirectUrl); // Redirect to GCash/GrabPay UI
         }
 
-        
-        // For card or non-redirect payments
+        // For non-redirect payments
         if (in_array($status, ['succeeded', 'processing', 'awaiting_payment_method'])) {
             return redirect()->route('payment.success')->with('status', "Payment {$status}.");
         }
 
         return back()->with('error', 'Unexpected payment status.');
-
-
 
     } catch (\Exception $e) {
         Log::error('Checkout error', [
@@ -163,7 +176,6 @@ class PaymentController extends Controller
         return back()->with('error', 'An error occurred during checkout. Please try again.');
     }
 }
-
 
 
 

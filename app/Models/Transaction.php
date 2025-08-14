@@ -174,22 +174,26 @@ class Transaction extends Model
     /**
      * Create membership upgrade transaction.
      */
-    public static function createMembershipUpgrade(
-        User $user,
-        string $tier,
-        float $amount,
-        string $paymentMethod = null
-    ): self {
+public static function createMembershipUpgrade(
+    User $user,
+    string $tier,
+    float $amount,
+    string $paymentMethod = null,
+    int $membershipId = null
+): self {
     return self::create([
         'user_id' => $user->id,
-        'type' => 'membership_upgrade', // 👈 This is the problem!
+        'membership_id' => $membershipId,
+        'type' => 'membership_upgrade',
         'amount' => $amount,
         'currency' => 'PHP',
         'payment_method' => $paymentMethod ?? 'pending',
-        'payment_metadata' => json_encode(['tier' => $tier, 'user_membership_before' => $user->membership->tier ?? null]),
+        'payment_metadata' => json_encode([
+            'tier' => $tier,
+            'user_membership_before' => $user->membership->tier ?? null
+        ]),
     ]);
-    }
-
+}
 
     
     /**

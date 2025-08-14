@@ -30,93 +30,106 @@ class PaymentService
      * Create a payment intent for membership upgrade.
      */
 
-    public function createPaymentIntent(User $user, string $tier): array
-    {
-        try {
-            $amount = config("paymongo.membership_prices.{$tier}");
-            
-            if (!$amount) {
-                throw new Exception("Invalid membership tier: {$tier}");
-            }
+public function createPaymentIntent(User $user, string $tier): array
+{
+    try {
+        $amount = config("paymongo.membership_prices.{$tier}");
+        
+        if (!$amount) {
+            throw new Exception("Invalid membership tier: {$tier}");
+        }
 
-            // Create transaction record
-            $transaction = Transaction::createMembershipUpgrade($user, $tier, $amount / 100);
+        // 1. Create membership record FIRST
+        $membership = Membership::create([
+            'user_id' => $user->id,
+            'tier' => $tier,
+            'amount' => $amount / 100,
+            'payment_status' => 'pending',
+        ]);
 
+        // 2. Create transaction record with membership_id
+        $transaction = Transaction::createMembershipUpgrade(
+            $user,
+            $tier,
+            $amount / 100,
+            null,
+            $membership->id
+        );
 
-            // Create membership record
-            $membership = Membership::create([
-                'user_id' => $user->id,
-                'tier' => $tier,
-                'amount' => $amount / 100,
-                'transaction_id' => $transaction->id,
-                'payment_status' => 'pending',
-            ]);
+        if (!$transaction) {
+            throw new Exception('Failed to create transaction record');
+        }
 
-            // Create payment intent via PayMongo API
-            $response = Http::withBasicAuth($this->secretKey, '')
-                ->post("{$this->baseUrl}/payment_intents", [
-                    'data' => [
-                        'attributes' => [
-                            'amount' => $amount,
-                            'currency' => 'PHP',
-                            'description' => "ShoPilipinas {$tier} VIP Membership - {$user->name}",
-                            'statement_descriptor' => 'ShoPilipinas VIP',
-                            'payment_method_allowed' => ['card', 'gcash', 'grab_pay', 'paymaya'],
-                            'metadata' => [
-                                'user_id' => (string) $user->id,
-                                'membership_tier' => (string) $tier,
-                                'transaction_id' => (string) $transaction->id,
-                                'membership_id' => (string) $membership->id,
-                            ],
+        // 3. Update membership with transaction_id
+        $membership->update([
+            'transaction_id' => $transaction->id,
+        ]);
+
+        // 4. Create payment intent via PayMongo API
+        $response = Http::withBasicAuth($this->secretKey, '')
+            ->post("{$this->baseUrl}/payment_intents", [
+                'data' => [
+                    'attributes' => [
+                        'amount' => $amount,
+                        'currency' => 'PHP',
+                        'description' => "ShoPilipinas {$tier} VIP Membership - {$user->name}",
+                        'statement_descriptor' => 'ShoPilipinas VIP',
+                        'payment_method_allowed' => ['card', 'gcash', 'grab_pay', 'paymaya'],
+                        'metadata' => [
+                            'user_id' => (string) $user->id,
+                            'membership_tier' => (string) $tier,
+                            'transaction_id' => (string) $transaction->id,
+                            'membership_id' => (string) $membership->id,
                         ],
                     ],
-                ]);
-
-
-            if ($response->failed()) {
-                Log::error('PayMongo payment intent creation failed', [
-                    'response' => $response->json(),
-                    'user_id' => $user->id,
-                    'tier' => $tier,
-                ]);
-                throw new Exception('Failed to create payment intent');
-            }
-
-            $paymentIntent = $response->json()['data'];
-            
-            // Update transaction with PayMongo payment ID
-            $transaction->update([
-                'external_payment_id' => $paymentIntent['id'],
-                'payment_metadata' => $paymentIntent,
+                ],
             ]);
 
-            // Update membership with PayMongo payment ID
-            $membership->update([
-                'paymongo_payment_id' => $paymentIntent['id'],
-                'payment_details' => $paymentIntent,
-            ]);
-
-            return [
-                'success' => true,
-                'payment_intent' => $paymentIntent,
-                'client_key' => $paymentIntent['attributes']['client_key'],
-                'transaction_id' => $transaction->id,
-                'membership_id' => $membership->id,
-            ];
-
-        } catch (Exception $e) {
-            Log::error('Payment intent creation error', [
-                'error' => $e->getMessage(),
+        if ($response->failed()) {
+            Log::error('PayMongo payment intent creation failed', [
+                'response' => $response->json(),
                 'user_id' => $user->id,
                 'tier' => $tier,
             ]);
-
-            return [
-                'success' => false,
-                'error' => $e->getMessage(),
-            ];
+            throw new Exception('Failed to create payment intent');
         }
+
+        $paymentIntent = $response->json()['data'];
+
+        // 5. Update transaction with PayMongo payment ID
+        $transaction->update([
+            'external_payment_id' => $paymentIntent['id'],
+            'payment_metadata' => $paymentIntent,
+        ]);
+
+        // 6. Update membership with PayMongo payment ID
+        $membership->update([
+            'paymongo_payment_id' => $paymentIntent['id'],
+            'payment_details' => $paymentIntent,
+        ]);
+
+        return [
+            'success' => true,
+            'payment_intent' => $paymentIntent,
+            'client_key' => $paymentIntent['attributes']['client_key'],
+            'transaction_id' => $transaction->id,
+            'membership_id' => $membership->id,
+        ];
+
+    } catch (Exception $e) {
+        Log::error('Payment intent creation error', [
+            'error' => $e->getMessage(),
+            'user_id' => $user->id,
+            'tier' => $tier,
+        ]);
+
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+        ];
     }
+}
+
 
 
 
