@@ -185,7 +185,7 @@ class Transaction extends Model
         'type' => 'membership_upgrade', // 👈 This is the problem!
         'amount' => $amount,
         'currency' => 'PHP',
-        'payment_method' => $paymentMethod,
+        'payment_method' => $paymentMethod ?? 'pending',
         'payment_metadata' => json_encode(['tier' => $tier, 'user_membership_before' => $user->membership->tier ?? null]),
     ]);
     }
