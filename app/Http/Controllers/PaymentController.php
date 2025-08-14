@@ -170,6 +170,9 @@ class PaymentController extends Controller
                 /**
                  * Handle successful payment.
                  */
+                /**
+                 * Handle successful payment.
+                 */
             public function paymentSuccess(Request $request)
             {
                 $sourceId = $request->query('id'); // This should be like "src_ABC123"
@@ -205,7 +208,7 @@ class PaymentController extends Controller
 
                 session()->forget(['payment_intent_id', 'client_key', 'tier', 'payment_method', 'amount']);
 
-                return view('payment.success', compact('user', 'tier'));
+                return view('payment.succesfull', compact('user', 'tier'));
                 
             }
 

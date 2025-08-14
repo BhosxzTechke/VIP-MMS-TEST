@@ -126,36 +126,31 @@ class PaymentService
 public function createPaymentMethod(string $type, User $user): array
 {
     try {
-            if (in_array($type, ['gcash', 'grab_pay', 'paymaya'])) {
-                $details = [
-                    'return_url' => route('payment.success'),
-                ];
-            } elseif ($type === 'card') {
-                $details = [
-                    'card_number' => '4343434343434345', // Test card number
-                    'exp_month' => 12,
-                    'exp_year' => 2028, 
-                    'cvc' => '123',
-                    'billing' => [
-                        'name' => $user->name,
-                        'email' => $user->email,
-                    ],
-                ];
-            } else {
-                throw new \Exception("Unsupported payment type: {$type}");
-            }
-        // Create payment method via PayMongo API
+        if (in_array($type, ['gcash', 'grab_pay', 'paymaya'])) {
+            // Wallet-based payments
+            $details = [
+                'return_url' => route('payment.success'),
+            ];
 
-        $response = Http::withBasicAuth($this->publicKey, '')
-            ->post("{$this->baseUrl}/payment_methods", [
-                'data' => [
-                    'attributes' => [
-                        'type' => $type,
-                        'details' => $details,
+            $response = Http::withBasicAuth($this->publicKey, '')
+                ->post("{$this->baseUrl}/payment_methods", [
+                    'data' => [
+                        'attributes' => [
+                            'type' => $type,
+                            'details' => $details,
+                        ],
                     ],
-                ],
-            ]);
+                ]);
 
+        } elseif ($type === 'card') {
+            // For cards, use Checkout Session instead of direct payment method creation
+            return $this->createCardCheckout($user);
+            
+        } else {
+            throw new \Exception("Unsupported payment type: {$type}");
+        }
+
+        // Common error handling for non-card payments
         if ($response->failed()) {
             Log::error('PayMongo payment method creation failed', [
                 'response' => $response->json(),
@@ -185,7 +180,7 @@ public function createPaymentMethod(string $type, User $user): array
 }
 
 
-    /**
+     /**
      * Attach payment method to payment intent.
      */
 public function attachPaymentMethod(string $paymentIntentId, string $paymentMethodId, string $type): array
@@ -235,6 +230,49 @@ public function attachPaymentMethod(string $paymentIntentId, string $paymentMeth
 }
 
 
+
+
+    /**
+     * Create a card checkout session.
+     */
+public function createCardCheckout(User $user): array
+{
+    try {
+        $response = Http::withBasicAuth($this->secretKey, '')
+            ->post("{$this->baseUrl}/checkout_sessions", [
+                'data' => [
+                    'attributes' => [
+                        'payment_method_types' => ['card'],
+                        'line_items' => [
+                            [
+                                'name' => 'Upgrade Subscription',
+                                'amount' => 10000, // in centavos (₱100.00)
+                                'currency' => 'PHP',
+                                'quantity' => 1,
+                            ],
+                        ],
+                        'success_url' => route('payment.success'),
+                        'cancel_url' => route('payment.cancel'),
+                        'customer_email' => $user->email,
+                    ],
+                ],
+            ]);
+
+        if ($response->failed()) {
+            throw new \Exception('Failed to create card checkout session');
+        }
+
+        return [
+            'success' => true,
+            'checkout_url' => $response->json()['data']['attributes']['checkout_url'],
+        ];
+    } catch (\Exception $e) {
+        return [
+            'success' => false,
+            'error' => $e->getMessage(),
+        ];
+    }
+}
     
 
     /**
