@@ -167,20 +167,18 @@ public function createPaymentMethod(string $type, User $user): array
         if (in_array($type, ['gcash', 'grab_pay', 'paymaya'])) {
             // Wallet-based payments
             $details = [
-                'return_url' => route('payment.success'),
+                'return_url' => 'https://vip-mms.up.railway.app/payment/success',
             ];
 
         $response = Http::withBasicAuth($this->secretKey, '')
             ->post("{$this->baseUrl}/payment_methods", [
-                'data' => [
-                    'attributes' => [
-                        'type' => $type,
-                        'details' => [
-                            'return_url' => route('payment.success'), // must be public URL
+                    'data' => [
+                        'attributes' => [
+                            'type' => $type,
+                            'details' => $details,
                         ],
                     ],
-                ],
-            ]);
+                ]);
 
         } elseif ($type === 'card') {
             // For cards, use Checkout Session instead of direct payment method creation
