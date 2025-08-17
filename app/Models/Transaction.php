@@ -197,7 +197,7 @@ class Transaction extends Model
         return self::create([
             'user_id' => $user->id,
             'membership_id' => $membershipId,
-            'type' => 'membership_upgrade',
+            'type' => 'membership',
             'amount' => $amount,
             'status' => 'pending',
             'currency' => 'PHP',
