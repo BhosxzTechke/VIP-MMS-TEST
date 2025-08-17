@@ -8,6 +8,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Str;
+use App\Models\Membership;
+use App\Models\transaction;
 
 class User extends Authenticatable
 {
@@ -18,17 +20,37 @@ class User extends Authenticatable
      *
      * @var array<int, string>
      */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'phone',
-        'membership_type',
-        'referral_code',
-        'commission_rate',
-        'membership_valid_until',
-        'membership_upgraded_at',
-    ];
+    // protected $fillable = [
+    //     'name',
+    //     'email',
+    //     'password',
+    //     'phone',
+    //     'membership_type',
+    //     'referral_code',
+    //     'commission_rate',
+    //     'membership_valid_until',
+    //     'membership_upgraded_at',
+    // ];
+
+
+
+
+public function Membership() { return $this->hasMany(Membership::class); }
+public function transaction() { return $this->hasMany(Transaction::class); }
+
+public function referredBy() { return $this->belongsTo(User::class, 'referred_by'); }
+public function referralsMade() { return $this->hasMany(Referral::class, 'referrer_id'); }
+
+protected $fillable = [
+    'name','email','password','referral_code','referred_by','phone',
+];
+
+
+
+
+
+
+
 
 
     // FOR POSTMAN TESTING

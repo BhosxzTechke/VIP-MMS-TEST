@@ -8,6 +8,7 @@ use App\Models\Transaction;
 use App\Models\Referral;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+
 use Exception;
 
 class PaymentService
@@ -35,24 +36,35 @@ public function createPaymentIntent(User $user, string $tier): array
     try {
         $amount = config("paymongo.membership_prices.{$tier}");
         
-        if (!$amount) {
-            throw new Exception("Invalid membership tier: {$tier}");
-        }
+  
 
-        // 1. Create membership record FIRST
-        $membership = Membership::create([
+
+        // Use active membership if exists, otherwise fallback to latest
+        $membership = $user->memberships()
+                   ->where('expires_at', '>', now())
+                   ->first() 
+               ?? $user->memberships()->latest()->first();
+
+
+        if (!$membership) {
+          $membership = Membership::create([
             'user_id' => $user->id,
             'tier' => $tier,
             'amount' => $amount / 100,
             'payment_status' => 'pending',
         ]);
+    }
+
+    
+
+    /// TESTING
 
         // 2. Create transaction record with membership_id
         $transaction = Transaction::createMembershipUpgrade(
             $user,
             $tier,
             $amount / 100,
-            null,
+            null, // PaymentMethod
             $membership->id
         );
 
@@ -60,10 +72,22 @@ public function createPaymentIntent(User $user, string $tier): array
             throw new Exception('Failed to create transaction record');
         }
 
+
+        // Ensure membership is valid
+        if (!$membership || !$membership->id) {
+            throw new Exception('Membership not found or invalid');
+        }
+
+
+
         // 3. Update membership with transaction_id
         $membership->update([
             'transaction_id' => $transaction->id,
         ]);
+
+        
+
+        // Log the transaction creation
 
         // 4. Create payment intent via PayMongo API
         $response = Http::withBasicAuth($this->secretKey, '')
@@ -85,6 +109,7 @@ public function createPaymentIntent(User $user, string $tier): array
                 ],
             ]);
 
+
         if ($response->failed()) {
             Log::error('PayMongo payment intent creation failed', [
                 'response' => $response->json(),
@@ -104,7 +129,7 @@ public function createPaymentIntent(User $user, string $tier): array
 
         // 6. Update membership with PayMongo payment ID
         $membership->update([
-            'paymongo_payment_id' => $paymentIntent['id'],
+            'payment_gateway_id' => $paymentIntent['id'],
             'payment_details' => $paymentIntent,
         ]);
 

@@ -28,6 +28,25 @@ class Membership extends Model
     ];
 
 
+    //// this is what i Add
+        public function memberships()
+    {
+        return $this->hasMany(Membership::class);
+    }
+
+    // Optional helper
+    public function activeMembership()
+    {
+        return $this->memberships()
+                    ->where('expires_at', '>', now())
+                    ->first();
+    }
+
+    public function latestMembership()
+    {
+        return $this->memberships()->latest()->first();
+    }
+
 
     /**
      * The attributes that should be cast.

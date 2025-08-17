@@ -174,35 +174,45 @@ class Transaction extends Model
         ]);
     }
 
+
+
+    
     /**
      * Create membership upgrade transaction.
      */
-public static function createMembershipUpgrade(
-    User $user,
-    string $tier,
-    float $amount,
-    string $paymentMethod = null,
-    int $membershipId = null
-): self {
-    return self::create([
-        'user_id' => $user->id,
-        'membership_id' => $membershipId,
-        'type' => 'membership_upgrade',
-        'amount' => $amount,
-        'amount_paid' => 0, // <--- add this
-        'status' => 'pending',
-        'currency' => 'PHP',
-        'payment_method' => $paymentMethod ?? 'pending',
-        'payment_metadata' => json_encode([
-            'tier' => $tier,
-            'user_membership_before' => $user->membership->tier ?? null
-            
-        ]),
-    'transaction_date' => now(), // 👈 ADD THIS LINE
+        public static function createMembershipUpgrade(
+        User $user,
+        string $tier,
+        float $amount,
+        string $paymentMethod = null,
+        int $membershipId = null
+        ): self {
+
+        // Get previous membership safely
+        $previousMembership = $user->memberships()
+                                    ->where('expires_at', '>', now())
+                                    ->first()
+                            ?? $user->memberships()->latest()->first();
+
+                            
+        return self::create([
+            'user_id' => $user->id,
+            'membership_id' => $membershipId,
+            'type' => 'membership_upgrade',
+            'amount' => $amount,
+            'amount_paid' => 0,
+            'status' => 'pending',
+            'currency' => 'PHP',
+            'payment_method' => $paymentMethod ?? 'pending',
+            'payment_metadata' => json_encode([
+                'tier' => $tier,
+                'user_membership_before' => $previousMembership?->tier // ✅ use nullsafe operator
+            ]),
+            'transaction_date' => now(),
+        ]);
+        }
 
 
-    ]);
-}
 
 
 
