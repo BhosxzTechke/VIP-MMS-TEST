@@ -180,6 +180,9 @@ public function createPaymentMethod(string $type, User $user): array
                     ],
                 ]);
 
+
+    dd($response->json());
+
         } elseif ($type === 'card') {
             // For cards, use Checkout Session instead of direct payment method creation
             return $this->createCardCheckout($user);
