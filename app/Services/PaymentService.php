@@ -170,15 +170,17 @@ public function createPaymentMethod(string $type, User $user): array
                 'return_url' => route('payment.success'),
             ];
 
-            $response = Http::withBasicAuth($this->publicKey, '')
-                ->post("{$this->baseUrl}/payment_methods", [
-                    'data' => [
-                        'attributes' => [
-                            'type' => $type,
-                            'details' => $details,
+        $response = Http::withBasicAuth($this->secretKey, '')
+            ->post("{$this->baseUrl}/payment_methods", [
+                'data' => [
+                    'attributes' => [
+                        'type' => $type,
+                        'details' => [
+                            'return_url' => route('payment.success'), // must be public URL
                         ],
                     ],
-                ]);
+                ],
+            ]);
 
         } elseif ($type === 'card') {
             // For cards, use Checkout Session instead of direct payment method creation
@@ -239,6 +241,7 @@ public function attachPaymentMethod(string $paymentIntentId, string $paymentMeth
                 'data' => ['attributes' => $attributes],
             ]);
 
+            
         if ($response->failed()) {
             Log::error('PayMongo payment method attachment failed', [
                 'response' => $response->json(),
