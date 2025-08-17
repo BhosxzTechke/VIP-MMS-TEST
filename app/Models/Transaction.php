@@ -26,6 +26,8 @@ class Transaction extends Model
             'payment_method',
             'payment_metadata',
             'processed_at',
+            'transaction_date', // 👈 must be here
+
         ];
 
 
@@ -194,7 +196,11 @@ public static function createMembershipUpgrade(
         'payment_metadata' => json_encode([
             'tier' => $tier,
             'user_membership_before' => $user->membership->tier ?? null
+            
         ]),
+    'transaction_date' => now(), // 👈 ADD THIS LINE
+
+
     ]);
 }
 
@@ -217,6 +223,8 @@ public static function createMembershipUpgrade(
             'payment_metadata' => [
                 'referral_ids' => $referralIds,
                 'payout_date' => now()->toDateString(),
+
+                
             ],
         ]);
     }
