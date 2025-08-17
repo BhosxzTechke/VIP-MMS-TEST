@@ -167,7 +167,7 @@ public function createPaymentMethod(string $type, User $user): array
         if (in_array($type, ['gcash', 'grab_pay', 'paymaya'])) {
             // Wallet-based payments
             $details = [
-                'return_url' => 'https://vip-mms.up.railway.app/payment/success',
+                'return_url' => route('payment.success'),
             ];
 
         $response = Http::withBasicAuth($this->secretKey, '')
