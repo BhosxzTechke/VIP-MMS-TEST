@@ -19,6 +19,7 @@ class Transaction extends Model
             'membership_id', // ← add this
             'type',
             'amount',
+            'amount_paid',
             'currency',
             'payment_status',
             'external_payment_id',
