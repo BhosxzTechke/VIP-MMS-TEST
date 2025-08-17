@@ -19,7 +19,6 @@ class Transaction extends Model
             'membership_id', // ← add this
             'type',
             'amount',
-            'amount_paid',
             'currency',
             'payment_status',
             'external_payment_id',
@@ -194,13 +193,12 @@ class Transaction extends Model
                                     ->first()
                             ?? $user->memberships()->latest()->first();
 
-                            
+
         return self::create([
             'user_id' => $user->id,
             'membership_id' => $membershipId,
             'type' => 'membership_upgrade',
             'amount' => $amount,
-            'amount_paid' => 0,
             'status' => 'pending',
             'currency' => 'PHP',
             'payment_method' => $paymentMethod ?? 'pending',
