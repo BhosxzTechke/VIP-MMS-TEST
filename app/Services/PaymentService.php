@@ -191,14 +191,53 @@ public function createPaymentMethod(string $type, User $user): array
             throw new \Exception("Unsupported payment type: {$type}");
         }
 
-        // Common error handling for non-card payments
+          // Error handling
         if ($response->failed()) {
+            $errorData = $response->json();
+            $code = $errorData['errors'][0]['code'] ?? null;
+            $detail = $errorData['errors'][0]['detail'] ?? 'Payment failed.';
+
+            // Default user-friendly message
+            $message = $detail;
+
+            // Map common PayMongo error codes
+            switch ($code) {
+                case 'resource_invalid_state':
+                    if ($type === 'grab_pay') {
+                        $message = "Your GrabPay wallet is not activated. Please open your Grab app → Payment and activate GrabPay.";
+                    } else {
+                        $message = "The selected wallet is not in a valid state. Please try another method.";
+                    }
+                    break;
+
+                case 'payment_method_not_allowed':
+                    $message = ucfirst($type)." is not yet enabled on your merchant account.";
+                    break;
+
+                case 'parameter_required':
+                    $message = "A required field was missing in the payment request.";
+                    break;
+
+                case 'amount_exceed_limit':
+                    $message = "The amount exceeds the allowed limit for ".ucfirst($type).".";
+                    break;
+
+                case 'closed':
+                    $message = "This transaction has expired. Please try again.";
+                    break;
+
+                default:
+                    $message = $detail;
+                    break;
+            }
+
             Log::error('PayMongo payment method creation failed', [
-                'response' => $response->json(),
+                'response' => $errorData,
                 'type' => $type,
                 'user_id' => $user->id,
             ]);
-            throw new \Exception('Failed to create payment method');
+
+            throw new \Exception($message);
         }
 
         return [
